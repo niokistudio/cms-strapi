@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/app
 
 # Creación del usuario no privilegiado
-RUN groupadd -r strapi && useradd -r -g strapi strapi
+RUN groupadd -r strapi && useradd -r -g strapi -m -d /home/strapi strapi
 
 # Etapa de desarrollo
 FROM base as development
@@ -69,7 +69,7 @@ ENV NODE_OPTIONS="--max-old-space-size=1024"
 WORKDIR /opt/app
 
 # Creación del usuario no privilegiado
-RUN groupadd -r strapi && useradd -r -g strapi strapi
+RUN groupadd -r strapi && useradd -r -g strapi -m -d /home/strapi strapi
 
 # Copia de la aplicación construida desde la etapa builder
 COPY --from=builder --chown=strapi:strapi /opt/app .

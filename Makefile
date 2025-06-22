@@ -62,7 +62,7 @@ help:
 # CONFIGURACIÓN INICIAL
 # ==================================================================
 
-setup: check-env create-strapi install start-db wait-db migrate
+setup: check-env create-strapi install start-db wait-db
 	@echo "$(GREEN)✓ Configuración inicial completada$(NC)"
 	@echo "$(YELLOW)Próximos pasos:$(NC)"
 	@echo "  1. Ejecuta: make start"
@@ -97,7 +97,7 @@ install:
 
 start:
 	@echo "$(YELLOW)Iniciando servicios...$(NC)"
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up
 	@echo "$(GREEN)✓ Servicios iniciados$(NC)"
 	@echo "$(YELLOW)URLs disponibles:$(NC)"
 	@echo "  - Strapi Admin: http://localhost:1337/admin"
@@ -142,7 +142,7 @@ shell:
 
 shell-db:
 	@echo "$(YELLOW)Accediendo al contenedor de PostgreSQL...$(NC)"
-	$(DOCKER_COMPOSE) exec $(DB_CONTAINER) psql -U $${DATABASE_USERNAME:-strapi_user} -d $${DATABASE_NAME:-cms_strapi_db}
+	$(DOCKER_COMPOSE) exec $(DB_CONTAINER) psql -U strapi_user -d cms_strapi_db
 
 # ==================================================================
 # BASE DE DATOS
@@ -150,11 +150,16 @@ shell-db:
 
 wait-db:
 	@echo "$(YELLOW)Esperando que la base de datos esté lista...$(NC)"
-	@while ! $(DOCKER_COMPOSE) exec $(DB_CONTAINER) pg_isready -U $${DATABASE_USERNAME:-strapi_user} -d $${DATABASE_NAME:-cms_strapi_db} >/dev/null 2>&1; do \
-		echo "Esperando PostgreSQL..."; \
+	@for i in $$(seq 1 15); do \
+		if docker exec cms-strapi-db pg_isready -h localhost -p 5432 >/dev/null 2>&1; then \
+			echo "$(GREEN)✓ Base de datos lista$(NC)"; \
+			exit 0; \
+		fi; \
+		echo "Esperando PostgreSQL... ($$i/15)"; \
 		sleep 2; \
-	done
-	@echo "$(GREEN)✓ Base de datos lista$(NC)"
+	done; \
+	echo "$(RED)Error: Timeout esperando PostgreSQL$(NC)"; \
+	exit 1
 
 migrate:
 	@echo "$(YELLOW)Ejecutando migraciones...$(NC)"
@@ -173,7 +178,7 @@ backup-db:
 	@echo "$(YELLOW)Creando backup de la base de datos...$(NC)"
 	@mkdir -p $(BACKUP_DIR)
 	@BACKUP_FILE=$(BACKUP_DIR)/backup_$$(date +%Y%m%d_%H%M%S).sql; \
-	$(DOCKER_COMPOSE) exec $(DB_CONTAINER) pg_dump -U $${DATABASE_USERNAME:-strapi_user} -d $${DATABASE_NAME:-cms_strapi_db} > $$BACKUP_FILE; \
+	$(DOCKER_COMPOSE) exec $(DB_CONTAINER) pg_dump -U strapi_user -d cms_strapi_db > $$BACKUP_FILE; \
 	echo "$(GREEN)✓ Backup creado: $$BACKUP_FILE$(NC)"
 
 restore-db:
@@ -182,7 +187,7 @@ restore-db:
 		exit 1; \
 	fi
 	@echo "$(YELLOW)Restaurando backup: $(BACKUP_FILE)$(NC)"
-	@$(DOCKER_COMPOSE) exec -T $(DB_CONTAINER) psql -U $${DATABASE_USERNAME:-strapi_user} -d $${DATABASE_NAME:-cms_strapi_db} < $(BACKUP_FILE)
+	@$(DOCKER_COMPOSE) exec -T $(DB_CONTAINER) psql -U strapi_user -d cms_strapi_db < $(BACKUP_FILE)
 	@echo "$(GREEN)✓ Backup restaurado$(NC)"
 
 # ==================================================================
@@ -296,8 +301,8 @@ prod-build:
 
 health-check:
 	@echo "$(YELLOW)Verificando salud de los servicios...$(NC)"
-	@curl -f http://localhost:1337/_health || echo "$(RED)Strapi no responde$(NC)"
-	@$(DOCKER_COMPOSE) exec $(DB_CONTAINER) pg_isready -U $${DATABASE_USERNAME:-strapi_user} || echo "$(RED)PostgreSQL no responde$(NC)"
+	@curl -f http://localhost:1337/_health 2>/dev/null && echo "$(GREEN)Strapi OK$(NC)" || echo "$(RED)Strapi no responde$(NC)"
+	@docker exec $(DB_CONTAINER) pg_isready -U strapi_user -d cms_strapi_db >/dev/null 2>&1 && echo "$(GREEN)PostgreSQL OK$(NC)" || echo "$(RED)PostgreSQL no responde$(NC)"
 
 # ==================================================================
 # INFORMACIÓN DEL PROYECTO
