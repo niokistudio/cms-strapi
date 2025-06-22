@@ -1,0 +1,423 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20'
+  DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+  IMAGE_NAME: cms-strapi
+  
+jobs:
+  # ==================================================================
+  # JOB 1: LINT Y VALIDACIÓN
+  # ==================================================================
+  lint:
+    name: 🔍 Lint y Validación
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🏗️ Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: cms/package-lock.json
+        
+    - name: 📦 Install dependencies
+      working-directory: ./cms
+      run: npm ci
+      
+    - name: 🔍 Run ESLint
+      working-directory: ./cms
+      run: npm run lint:check
+      
+    - name: 💅 Check Prettier formatting
+      working-directory: ./cms
+      run: npm run format:check
+      
+    - name: 🔧 TypeScript check
+      working-directory: ./cms
+      run: npm run strapi:ts
+
+  # ==================================================================
+  # JOB 2: TESTS UNITARIOS
+  # ==================================================================
+  test:
+    name: 🧪 Tests Unitarios
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: strapi_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: strapi_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🏗️ Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: cms/package-lock.json
+        
+    - name: 📦 Install dependencies
+      working-directory: ./cms
+      run: npm ci
+      
+    - name: 🧪 Run tests
+      working-directory: ./cms
+      env:
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: strapi_test
+        DATABASE_USERNAME: strapi_test
+        DATABASE_PASSWORD: test_password
+        NODE_ENV: test
+        JWT_SECRET: test-jwt-secret
+        ADMIN_JWT_SECRET: test-admin-jwt-secret
+        API_TOKEN_SALT: test-api-token-salt
+        TRANSFER_TOKEN_SALT: test-transfer-token-salt
+        APP_KEYS: test-key-1,test-key-2,test-key-3,test-key-4
+      run: npm run test:coverage
+      
+    - name: 📊 Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./cms/coverage/lcov.info
+        flags: unittests
+
+  # ==================================================================
+  # JOB 3: TESTS DE INTEGRACIÓN
+  # ==================================================================
+  integration-test:
+    name: 🔗 Tests de Integración
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🏗️ Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: 🐳 Build and start services
+      run: |
+        cp .env.example .env
+        docker-compose up -d --build
+        
+    - name: ⏳ Wait for services
+      run: |
+        timeout 300 bash -c 'until curl -f http://localhost:1337/_health; do sleep 5; done'
+        
+    - name: 🧪 Run integration tests
+      run: |
+        # Instalar herramientas de testing
+        npm install -g newman k6
+        
+        # Ejecutar tests de API con Postman/Newman
+        if [ -f "tests/integration/api.postman_collection.json" ]; then
+          newman run tests/integration/api.postman_collection.json \
+            --environment tests/integration/environment.json
+        fi
+        
+        # Ejecutar tests de carga con k6
+        if [ -f "tests/load/api-load.js" ]; then
+          k6 run tests/load/api-load.js
+        fi
+        
+    - name: 📊 Collect logs
+      if: failure()
+      run: |
+        docker-compose logs strapi > strapi-logs.txt
+        docker-compose logs postgres > postgres-logs.txt
+        
+    - name: 📤 Upload logs
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: integration-test-logs
+        path: |
+          strapi-logs.txt
+          postgres-logs.txt
+
+  # ==================================================================
+  # JOB 4: BUILD DE IMAGEN DOCKER
+  # ==================================================================
+  build:
+    name: 🏗️ Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🏗️ Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🔐 Login to Docker Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: 📝 Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: 🏗️ Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        target: production
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: 🔒 Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ steps.meta.outputs.tags }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+        
+    - name: 🛡️ Scan image for vulnerabilities
+      uses: anchore/scan-action@v3
+      with:
+        image: ${{ steps.meta.outputs.tags }}
+        fail-build: false
+        severity-cutoff: high
+
+  # ==================================================================
+  # JOB 5: SECURITY SCANNING
+  # ==================================================================
+  security:
+    name: 🛡️ Security Scanning
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔍 Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.build.outputs.image-tag }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: 📤 Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+        
+    - name: 🔍 Run npm audit
+      working-directory: ./cms
+      run: |
+        npm audit --audit-level high
+        npm audit --json > npm-audit.json
+        
+    - name: 📤 Upload audit results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: |
+          trivy-results.sarif
+          cms/npm-audit.json
+
+  # ==================================================================
+  # JOB 6: DEPLOY A STAGING
+  # ==================================================================
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, integration-test, security]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        
+    - name: 🚀 Deploy to ECS
+      run: |
+        # Actualizar task definition
+        aws ecs update-service \
+          --cluster cms-strapi-staging \
+          --service cms-strapi-staging-service \
+          --force-new-deployment
+          
+    - name: ⏳ Wait for deployment
+      run: |
+        aws ecs wait services-stable \
+          --cluster cms-strapi-staging \
+          --services cms-strapi-staging-service
+          
+    - name: 🔍 Health check
+      run: |
+        timeout 300 bash -c 'until curl -f ${{ secrets.STAGING_URL }}/_health; do sleep 10; done'
+        echo "✅ Staging deployment successful"
+
+  # ==================================================================
+  # JOB 7: DEPLOY A PRODUCCIÓN
+  # ==================================================================
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, integration-test, security]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        
+    - name: 🗄️ Create database backup
+      run: |
+        # Crear backup antes del deploy
+        aws rds create-db-snapshot \
+          --db-instance-identifier cms-strapi-prod \
+          --db-snapshot-identifier cms-strapi-prod-$(date +%Y%m%d%H%M%S)
+          
+    - name: 🚀 Deploy to ECS
+      run: |
+        # Actualizar task definition
+        aws ecs update-service \
+          --cluster cms-strapi-production \
+          --service cms-strapi-production-service \
+          --force-new-deployment
+          
+    - name: ⏳ Wait for deployment
+      run: |
+        aws ecs wait services-stable \
+          --cluster cms-strapi-production \
+          --services cms-strapi-production-service
+          
+    - name: 🔍 Health check
+      run: |
+        timeout 300 bash -c 'until curl -f ${{ secrets.PRODUCTION_URL }}/_health; do sleep 10; done'
+        echo "✅ Production deployment successful"
+        
+    - name: 📢 Notify deployment
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: "🎉 CMS Strapi deployed to production successfully!"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ==================================================================
+  # JOB 8: POST-DEPLOY TESTS
+  # ==================================================================
+  post-deploy-tests:
+    name: 🧪 Post-Deploy Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🧪 Run smoke tests
+      run: |
+        # Determinar URL según el entorno
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          TEST_URL="${{ secrets.PRODUCTION_URL }}"
+        else
+          TEST_URL="${{ secrets.STAGING_URL }}"
+        fi
+        
+        # Tests básicos de smoke
+        echo "Testing $TEST_URL"
+        
+        # Test 1: Health check
+        curl -f "$TEST_URL/_health" || exit 1
+        
+        # Test 2: API availability
+        curl -f "$TEST_URL/api" || exit 1
+        
+        # Test 3: Admin panel load
+        curl -f "$TEST_URL/admin" || exit 1
+        
+        echo "✅ All smoke tests passed"
+        
+    - name: 📊 Performance tests
+      run: |
+        # Instalar k6 para tests de performance
+        sudo apt-get update
+        sudo apt-get install -y k6
+        
+        # Ejecutar tests de performance básicos
+        if [ -f "tests/performance/smoke.js" ]; then
+          k6 run tests/performance/smoke.js
+        fi
+
+  # ==================================================================
+  # CLEANUP
+  # ==================================================================
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production, post-deploy-tests]
+    if: always()
+    
+    steps:
+    - name: 🧹 Clean up old images
+      run: |
+        # Limpiar imágenes antiguas del registry
+        echo "Cleaning up old Docker images..."
+        # Implementar lógica de limpieza según el registry usado

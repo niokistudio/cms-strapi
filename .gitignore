@@ -1,0 +1,368 @@
+# ==================================================================
+# .gitignore para CMS Strapi 5
+# ==================================================================
+
+# Dependencias
+node_modules/
+/.pnp
+.pnp.js
+
+# Archivos de configuración de entorno
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Reportes de diagnóstico
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Directorios de runtime
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directorios de coverage
+lib-cov
+coverage/
+*.lcov
+.nyc_output
+
+# Instrumentación de nyc
+.istanbul.yml
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Snowpack dependency directory
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Caché opcional de npm
+.npm
+
+# Caché opcional de eslint
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Historial REPL de Node.js
+.node_repl_history
+
+# Output de 'npm pack'
+*.tgz
+
+# Archivo de integridad de yarn
+.yarn-integrity
+
+# Archivos de variables de entorno
+.env.test.local
+.env.production.local
+
+# Caché de parcel-bundler
+.cache
+.parcel-cache
+
+# Archivos de output de Next.js
+.next
+out
+
+# Archivos de build de Nuxt.js
+.nuxt
+dist
+
+# Archivos de Gatsby
+.cache/
+public
+
+# Archivos de Storybook
+.out
+.storybook-out
+
+# Archivos temporales de FuseBox
+.fusebox/
+
+# Archivos locales de DynamoDB
+.dynamodb/
+
+# Puerto de TernJS
+.tern-port
+
+# Stores de VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# ==================================================================
+# ESPECÍFICO DE STRAPI
+# ==================================================================
+
+# Archivos de build de Strapi
+cms/build/
+cms/dist/
+cms/.strapi-updater.json
+
+# Base de datos local de Strapi
+cms/.tmp/
+cms/data.db*
+
+# Archivos de configuración generados
+cms/config/functions/bootstrap.js.map
+
+# Exports de contenido
+cms/exports/
+
+# Archivos de cache de Strapi
+cms/.cache/
+
+# ==================================================================
+# UPLOADS Y ARCHIVOS SUBIDOS
+# ==================================================================
+
+# Archivos subidos en desarrollo
+uploads/
+public/uploads/
+
+# Archivos temporales de upload
+*.tmp
+
+# ==================================================================
+# BASE DE DATOS Y BACKUPS
+# ==================================================================
+
+# Backups de base de datos
+backups/
+*.sql
+*.dump
+*.backup
+
+# Archivos de base de datos SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# ==================================================================
+# DOCKER Y CONTENEDORES
+# ==================================================================
+
+# Volúmenes de Docker locales
+.docker/
+
+# ==================================================================
+# LOGS Y MONITOREO
+# ==================================================================
+
+# Archivos de log
+logs/
+*.log
+
+# Archivos de monitoreo
+.env.monitoring
+
+# ==================================================================
+# HERRAMIENTAS DE DESARROLLO
+# ==================================================================
+
+# Coverage reports
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Archivos de entorno
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ==================================================================
+# IDE Y EDITORES
+# ==================================================================
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ==================================================================
+# SISTEMA OPERATIVO
+# ==================================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+
+# ==================================================================
+# CERTIFICADOS Y CLAVES
+# ==================================================================
+
+# Certificados SSL
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# Claves SSH
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# ==================================================================
+# ARCHIVOS TEMPORALES
+# ==================================================================
+
+# Archivos temporales
+tmp/
+temp/
+.tmp/
+
+# Archivos de caché
+.cache/
+.parcel-cache/
+
+# ==================================================================
+# BUILD Y DISTRIBUCIÓN
+# ==================================================================
+
+# Archivos de build
+build/
+dist/
+out/
+
+# Archivos de webpack
+.webpack/
+
+# ==================================================================
+# TESTING
+# ==================================================================
+
+# Archivos de test
+.nyc_output/
+coverage/
+
+# Jest
+coverage/
+.jest/
+
+# ==================================================================
+# OTROS
+# ==================================================================
+
+# Archivos de configuración local
+.local/
+
+# Archivos de configuración de usuario
+.user/
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

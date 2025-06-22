@@ -1,0 +1,81 @@
+# ==================================================================
+# PACKAGE.JSON PRINCIPAL DEL PROYECTO
+# ==================================================================
+{
+    "name": "cms-strapi",
+    "version": "1.0.0",
+    "description": "CMS basado en Strapi 5 con PostgreSQL, Docker y configuración DevOps",
+    "private": true,
+    "scripts": {
+        "setup": "npm run check-env && npm run install-deps && npm run create-strapi",
+        "check-env": "node -e \"if (!require('fs').existsSync('.env')) { console.error('❌ Archivo .env no existe. Copia .env.example a .env'); process.exit(1); } console.log('✅ Archivo .env encontrado');\"",
+        "install-deps": "if [ -d cms ]; then cd cms && npm install; fi",
+        "create-strapi": "if [ ! -d cms ]; then chmod +x ./strapi-create.sh && ./strapi-create.sh; fi",
+        "dev": "docker-compose up -d && docker-compose logs -f strapi",
+        "start": "docker-compose up -d",
+        "stop": "docker-compose down",
+        "restart": "docker-compose restart",
+        "logs": "docker-compose logs -f",
+        "logs-strapi": "docker-compose logs -f strapi",
+        "logs-db": "docker-compose logs -f postgres",
+        "shell": "docker-compose exec strapi /bin/bash",
+        "shell-db": "docker-compose exec postgres psql -U ${DATABASE_USERNAME:-strapi_user} -d ${DATABASE_NAME:-cms_strapi_db}",
+        "build": "docker-compose build",
+        "build-prod": "docker build --target production -t cms-strapi:latest .",
+        "migrate": "docker-compose exec strapi npm run strapi:ts",
+        "seed": "docker-compose exec strapi node scripts/seed.js",
+        "backup-db": "mkdir -p backups && docker-compose exec postgres pg_dump -U ${DATABASE_USERNAME:-strapi_user} -d ${DATABASE_NAME:-cms_strapi_db} > backups/backup_$(date +%Y%m%d_%H%M%S).sql",
+        "restore-db": "if [ -z \"$BACKUP_FILE\" ]; then echo \"Error: Especifica BACKUP_FILE=archivo.sql\"; exit 1; fi && docker-compose exec -T postgres psql -U ${DATABASE_USERNAME:-strapi_user} -d ${DATABASE_NAME:-cms_strapi_db} < $BACKUP_FILE",
+        "clean": "docker-compose down -v --rmi all --remove-orphans && docker system prune -f",
+        "reset": "npm run clean && rm -rf cms/node_modules uploads/* backups/*",
+        "test": "if [ -d cms ]; then cd cms && npm test; fi",
+        "test-watch": "if [ -d cms ]; then cd cms && npm run test:watch; fi",
+        "test-coverage": "if [ -d cms ]; then cd cms && npm run test:coverage; fi",
+        "lint": "if [ -d cms ]; then cd cms && npm run lint:check; fi",
+        "lint-fix": "if [ -d cms ]; then cd cms && npm run lint; fi",
+        "format": "if [ -d cms ]; then cd cms && npm run format; fi",
+        "format-check": "if [ -d cms ]; then cd cms && npm run format:check; fi",
+        "health-check": "curl -f http://localhost:1337/_health && docker-compose exec postgres pg_isready -U ${DATABASE_USERNAME:-strapi_user}",
+        "status": "docker-compose ps",
+        "update-strapi": "cd cms && npm update \"@strapi/*\"",
+        "strapi-console": "docker-compose exec strapi npm run strapi:console",
+        "strapi-build": "docker-compose exec strapi npm run build:admin",
+        "generate-types": "docker-compose exec strapi npm run strapi:ts",
+        "docker-logs": "docker-compose logs",
+        "docker-stats": "docker stats",
+        "security-scan": "if command -v trivy >/dev/null 2>&1; then trivy image cms-strapi:latest; else echo 'Trivy no instalado'; fi"
+    },
+    "keywords": [
+        "strapi",
+        "cms",
+        "headless",
+        "api",
+        "typescript",
+        "docker",
+        "postgresql",
+        "devops"
+    ],
+    "author": "Tu Nombre <tu-email@example.com>",
+    "license": "MIT",
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=8.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tu-usuario/cms-strapi.git"
+    },
+    "bugs": {
+        "url": "https://github.com/tu-usuario/cms-strapi/issues"
+    },
+    "homepage": "https://github.com/tu-usuario/cms-strapi#readme",
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "eslint": "^8.57.0",
+        "prettier": "^3.0.0"
+    },
+    "volta": {
+        "node": "20.11.0",
+        "npm": "10.4.0"
+    }
+}

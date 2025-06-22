@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  strapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: cms-strapi-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT}
+      API_TOKEN_SALT: ${API_TOKEN_SALT}
+      APP_KEYS: ${APP_KEYS}
+      NODE_ENV: development
+    volumes:
+      - ./cms:/opt/app
+      - /opt/app/node_modules
+      - ./uploads:/opt/app/public/uploads
+    ports:
+      - "${STRAPI_PORT:-1337}:1337"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - strapi-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: cms-strapi-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - strapi-data:/var/lib/postgresql/data
+      - ./scripts/backup:/docker-entrypoint-initdb.d
+    ports:
+      - "${DATABASE_PORT_EXTERNAL:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $DATABASE_USERNAME -d $DATABASE_NAME"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - strapi-network
+
+  adminer:
+    image: adminer:4-standalone
+    container_name: cms-strapi-adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: pepa-linha
+    depends_on:
+      - postgres
+    networks:
+      - strapi-network
+    profiles:
+      - adminer
+
+  # Servicio de backup automático
+  postgres-backup:
+    image: postgres:15-alpine
+    container_name: cms-strapi-backup
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_HOST: postgres
+      BACKUP_SCHEDULE: "0 2 * * *"  # Diario a las 2 AM
+      BACKUP_RETENTION_DAYS: 7
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup-cron.sh:/usr/local/bin/backup-cron.sh:ro
+    command: sh -c "chmod +x /usr/local/bin/backup-cron.sh && crond -f"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - strapi-network
+    profiles:
+      - backup
+
+volumes:
+  strapi-data:
+    driver: local
+
+networks:
+  strapi-network:
+    driver: bridge

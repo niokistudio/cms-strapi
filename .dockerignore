@@ -1,0 +1,117 @@
+# ==================================================================
+# .dockerignore para CMS Strapi 5
+# ==================================================================
+
+# Archivos de Git
+.git
+.gitignore
+.gitattributes
+
+# Archivos de documentación
+README.md
+CHANGELOG.md
+LICENSE
+
+# Archivos de configuración de desarrollo
+.env
+.env.*
+!.env.example
+
+# Dependencias de Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de test y coverage
+coverage/
+.nyc_output/
+tests/
+test/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Archivos de lint y formato
+.eslintrc*
+.prettier*
+.editorconfig
+
+# Archivos de TypeScript (solo para desarrollo)
+tsconfig.json
+*.d.ts
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos del sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Archivos temporales
+tmp/
+temp/
+.tmp/
+
+# Archivos de backup
+backups/
+*.sql
+*.dump
+
+# Archivos subidos en desarrollo
+uploads/
+public/uploads/
+
+# Archivos de compilación local
+dist/
+build/
+.cache/
+
+# Archivos de Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Scripts de utilidades
+scripts/
+Makefile
+
+# Configuración de CI/CD
+ci/
+.github/
+.gitlab-ci.yml
+
+# Archivos de configuración de herramientas
+.husky/
+.commitlint*
+jest.config*
+
+# Archivos de dependencias de sistema
+*.so
+*.dylib
+*.dll
+
+# Certificados y claves (por seguridad)
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# Archivos de monitoreo
+.env.monitoring
