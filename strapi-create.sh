@@ -78,9 +78,7 @@ create_strapi_project() {
     print_step "Ejecutando create-strapi-app..."
     npx create-strapi-app@latest cms \
         --typescript \
-        --skip-cloud \
-        --no-example-content \
-        --quickstart=false
+        --skip-cloud
     
     if [ $? -ne 0 ]; then
         print_error "Error al crear el proyecto Strapi"
